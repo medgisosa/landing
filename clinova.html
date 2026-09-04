@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinova — Gestión clínica para tu consultorio | GISOSA Health Tech</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500&family=Barlow+Condensed:wght@300;400;600;700;800;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'DM Sans', sans-serif; font-weight: 300; overflow-x: hidden;
+      -webkit-font-smoothing: antialiased; background: #06070A; color: #F2F7FC; }
+    a { color: inherit; text-decoration: none; }
+    @keyframes float    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes pulse-dot{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.65)} }
+    @keyframes fadeIn   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes slideIn  { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes blink    { 0%,100%{opacity:1} 50%{opacity:0} }
+    @keyframes scan     { 0%{transform:translateY(0)} 100%{transform:translateY(200px)} }
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(76,201,240,.28);border-radius:2px}
+    @media(max-width:768px){
+      .hide-mob{display:none !important}
+      .hero-g,.feat-g,.who-g{grid-template-columns:1fr !important}
+    }
+  </style>
+  <template id="__bundler_thumbnail" data-bg-color="#06070A">
+    <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg"><rect width="1200" height="800" fill="#06070A"/><defs><linearGradient id="cgt" x1="150" y1="30" x2="215" y2="105" gradientUnits="userSpaceOnUse"><stop stop-color="#5FF3E5"/><stop offset="1" stop-color="#47CAFF"/></linearGradient></defs><g transform="translate(490 290)"><circle cx="110" cy="110" r="86" fill="none" stroke="#F2F7FC" stroke-width="48" stroke-dasharray="324.21 216.14" stroke-dashoffset="-55.54"/><circle cx="110" cy="110" r="86" fill="none" stroke="url(#cgt)" stroke-width="48" stroke-dasharray="105.07 435.29" stroke-dashoffset="-379.75"/></g></svg>
+  </template>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ── Design tokens ───────────────────────────────────────── */
+const T = {
+  bgDeep:'#06070A', bgMid:'#0B0D11', bgSurface:'#111318', bgCard:'rgba(17,19,24,0.92)',
+  accent:'#4CC9F0', accentDim:'#0077B6',
+  accentGlow:'rgba(76,201,240,0.13)', accentBorder:'rgba(76,201,240,0.20)',
+  grad:'linear-gradient(135deg,#4CC9F0,#0077B6)',
+  gradVert:'linear-gradient(180deg,#4CC9F0,#0077B6)',
+  green:'#22C55E', greenGlow:'rgba(34,197,94,0.15)',
+  textPrimary:'#F2F7FC', textSecondary:'#7A8A9A', textMuted:'#38495A',
+}
+
+/* ── Hooks ───────────────────────────────────────────────── */
+function useReveal(threshold=0.12){
+  const ref=React.useRef(null), [vis,setVis]=React.useState(false)
+  React.useEffect(()=>{
+    const el=ref.current
+    if(!el)return
+    let done=false
+    const cleanup=()=>{
+      removeEventListener('scroll',check,true); removeEventListener('resize',check)
+      clearTimeout(t1); clearTimeout(t2); cancelAnimationFrame(raf)
+    }
+    const reveal=()=>{ if(!done){ done=true; setVis(true); cleanup() } }
+    function check(){
+      const r=el.getBoundingClientRect()
+      if(r.top<innerHeight*0.95 && r.bottom>0) reveal()
+    }
+    const raf=requestAnimationFrame(check)
+    const t1=setTimeout(check,200)
+    const t2=setTimeout(reveal,1500) // failsafe: never leave content hidden
+    addEventListener('scroll',check,true); addEventListener('resize',check)
+    check()
+    return cleanup
+  },[])
+  return [ref,vis]
+}
+function useCounter(end,dur=1800,active=false){
+  const [val,setVal]=React.useState(0)
+  React.useEffect(()=>{
+    if(!active)return
+    const t0=performance.now(); let raf
+    const tick=t=>{const p=Math.min((t-t0)/dur,1);setVal(Math.round((1-Math.pow(1-p,3))*end));if(p<1)raf=requestAnimationFrame(tick)}
+    raf=requestAnimationFrame(tick); return()=>cancelAnimationFrame(raf)
+  },[active,end,dur])
+  return val
+}
+function Reveal({delay=0,style,children,...rest}){
+  const [ref,vis]=useReveal()
+  return <div ref={ref} {...rest} style={{opacity:vis?1:0,transform:vis?'translateY(0)':'translateY(22px)',
+    transition:`opacity .75s cubic-bezier(.4,0,.2,1) ${delay}s,transform .75s cubic-bezier(.4,0,.2,1) ${delay}s`,...style}}>{children}</div>
+}
+
+/* ── App mockup visuals ──────────────────────────────────── */
+function AppDashboard(){
+  const appts=[
+    {time:'08:30',name:'Carlos Mendoza',type:'Consulta general',status:'confirmado'},
+    {time:'09:00',name:'Ana Rodríguez',type:'Control tensión',status:'en espera'},
+    {time:'09:45',name:'Luis Pérez',type:'Remisión cardiología',status:'confirmado'},
+    {time:'10:30',name:'María García',type:'Historia clínica nueva',status:'pendiente'},
+  ]
+  return (
+    <div style={{background:'#0C0E14',borderRadius:16,border:'1px solid rgba(76,201,240,0.18)',
+      overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(76,201,240,0.08)',
+      fontFamily:"'DM Sans',sans-serif"}}>
+      {/* Title bar */}
+      <div style={{background:'#080A0F',padding:'10px 16px',display:'flex',
+        alignItems:'center',gap:8,borderBottom:'1px solid rgba(76,201,240,0.10)'}}>
+        <div style={{display:'flex',gap:6}}>
+          {['#FF5F57','#FEBC2E','#28C840'].map((c,i)=>(
+            <div key={i} style={{width:10,height:10,borderRadius:'50%',background:c}}/>
+          ))}
+        </div>
+        <div style={{flex:1,textAlign:'center',fontFamily:"'JetBrains Mono',monospace",
+          fontSize:'0.6rem',color:T.textMuted,letterSpacing:'0.1em'}}>
+          clinova.app — Dashboard
+        </div>
+      </div>
+      <div style={{display:'flex',height:320}}>
+        {/* Sidebar */}
+        <div style={{width:52,background:'#080A0F',borderRight:'1px solid rgba(76,201,240,0.08)',
+          display:'flex',flexDirection:'column',alignItems:'center',paddingTop:16,gap:20}}>
+          {[
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+          ].map((icon,i)=>(
+            <div key={i} style={{width:36,height:36,borderRadius:8,display:'flex',
+              alignItems:'center',justifyContent:'center',
+              background:i===0?T.accentGlow:'transparent',
+              border:i===0?`1px solid ${T.accentBorder}`:'none'}}>{icon}</div>
+          ))}
+        </div>
+        {/* Main */}
+        <div style={{flex:1,padding:'14px 16px',overflowY:'hidden'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+            <div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+                fontSize:'1rem',textTransform:'uppercase',letterSpacing:'0.06em',color:T.textPrimary}}>
+                Hoy — Agenda
+              </div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.58rem',
+                color:T.textMuted,marginTop:2}}>Lunes 14 Abr · 4 citas programadas</div>
+            </div>
+            <div style={{background:T.grad,borderRadius:4,padding:'5px 12px',
+              fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'0.72rem',
+              letterSpacing:'0.06em',textTransform:'uppercase',color:'#050608',cursor:'pointer'}}>
+              + Nueva cita
+            </div>
+          </div>
+          {/* Stat chips */}
+          <div style={{display:'flex',gap:8,marginBottom:14}}>
+            {[{n:4,l:'Citas hoy'},{n:1,l:'En consulta'},{n:2,l:'Pendientes'}].map(s=>(
+              <div key={s.l} style={{flex:1,background:'rgba(76,201,240,0.06)',
+                border:'1px solid rgba(76,201,240,0.12)',borderRadius:8,padding:'8px 10px'}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,
+                  fontSize:'1.4rem',lineHeight:1,background:T.grad,
+                  WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{s.n}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.55rem',
+                  color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.08em',marginTop:2}}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+          {/* Appointment list */}
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {appts.map((a,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:10,
+                background:i===1?'rgba(76,201,240,0.07)':'rgba(255,255,255,0.02)',
+                border:`1px solid ${i===1?'rgba(76,201,240,0.2)':'rgba(255,255,255,0.04)'}`,
+                borderRadius:8,padding:'8px 10px'}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.6rem',
+                  color:i===1?T.accent:T.textMuted,width:36,flexShrink:0}}>{a.time}</div>
+                {i===1&&<div style={{width:6,height:6,borderRadius:'50%',
+                  background:T.green,flexShrink:0,boxShadow:`0 0 8px ${T.green}`}}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'0.72rem',fontWeight:500,color:T.textPrimary,
+                    whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.name}</div>
+                  <div style={{fontSize:'0.6rem',color:T.textMuted,marginTop:1}}>{a.type}</div>
+                </div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.55rem',
+                  padding:'2px 8px',borderRadius:99,flexShrink:0,
+                  background:a.status==='confirmado'?'rgba(34,197,94,0.1)':a.status==='en espera'?T.accentGlow:'rgba(255,255,255,0.04)',
+                  color:a.status==='confirmado'?T.green:a.status==='en espera'?T.accent:T.textMuted,
+                  border:`1px solid ${a.status==='confirmado'?'rgba(34,197,94,0.2)':a.status==='en espera'?T.accentBorder:'rgba(255,255,255,0.06)'}`,
+                }}>{a.status}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Feature mockups */
+function MockAgendamiento(){
+  const days=['L','M','X','J','V']
+  const slots=[[1,0,1,0,1],[0,1,1,1,0],[1,1,0,0,1],[0,0,1,1,0]]
+  return (
+    <div style={{background:'#0C0E14',borderRadius:12,border:'1px solid rgba(76,201,240,0.15)',
+      padding:'1.2rem',animation:'fadeIn .3s ease'}}>
+      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.62rem',color:T.accent,
+        letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:'0.8rem'}}>Agenda semanal</div>
+      <div style={{display:'grid',gridTemplateColumns:'40px repeat(5,1fr)',gap:4}}>
+        <div/>
+        {days.map(d=><div key={d} style={{textAlign:'center',fontFamily:"'JetBrains Mono',monospace",
+          fontSize:'0.58rem',color:T.textMuted,paddingBottom:4}}>{d}</div>)}
+        {['08:00','09:00','10:00','11:00'].map((h,ri)=>(
+          <React.Fragment key={h}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.55rem',
+              color:T.textMuted,display:'flex',alignItems:'center'}}>{h}</div>
+            {slots[ri].map((v,ci)=>(
+              <div key={ci} style={{height:28,borderRadius:4,
+                background:v?T.accentGlow:'rgba(255,255,255,0.02)',
+                border:`1px solid ${v?T.accentBorder:'rgba(255,255,255,0.04)'}`,
+                display:'flex',alignItems:'center',justifyContent:'center'}}>
+                {v&&<div style={{width:'70%',height:8,borderRadius:2,background:T.grad,opacity:0.7}}/>}
+              </div>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{marginTop:'0.8rem',display:'flex',gap:6}}>
+        {[{c:T.accent,l:'Agendado'},{c:T.green,l:'Completado'},{c:T.textMuted,l:'Disponible'}].map(s=>(
+          <div key={s.l} style={{display:'flex',alignItems:'center',gap:4}}>
+            <div style={{width:8,height:8,borderRadius:2,background:s.c,opacity:0.7}}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.55rem',color:T.textMuted}}>{s.l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MockHistoria(){
+  return (
+    <div style={{background:'#0C0E14',borderRadius:12,border:'1px solid rgba(76,201,240,0.15)',
+      padding:'1.2rem',animation:'fadeIn .3s ease'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.8rem'}}>
+        <div>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'0.95rem',
+            textTransform:'uppercase',color:T.textPrimary}}>Carlos Mendoza</div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.58rem',color:T.textMuted,marginTop:2}}>
+            Cód: PAC-00247 · 34 años · M
+          </div>
+        </div>
+        <div style={{background:T.accentGlow,border:`1px solid ${T.accentBorder}`,borderRadius:6,
+          padding:'4px 10px',fontFamily:"'JetBrains Mono',monospace",fontSize:'0.58rem',color:T.accent}}>
+          Activo
+        </div>
+      </div>
+      {[{l:'Motivo consulta',v:'Dolor torácico intermitente'},
+        {l:'Antecedentes',v:'HTA, DM tipo 2'},
+        {l:'Medicación actual',v:'Metformina 850mg, Losartán 50mg'},
+        {l:'Últimos signos vitales',v:'TA 130/85 · FC 78 · T 36.5°C'},
+      ].map(f=>(
+        <div key={f.l} style={{marginBottom:8,paddingBottom:8,
+          borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.55rem',
+            color:T.textMuted,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:2}}>{f.l}</div>
+          <div style={{fontSize:'0.75rem',color:T.textPrimary,fontWeight:400}}>{f.v}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MockFacturacion(){
+  return (
+    <div style={{background:'#0C0E14',borderRadius:12,border:'1px solid rgba(76,201,240,0.15)',
+      padding:'1.2rem',animation:'fadeIn .3s ease'}}>
+      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.62rem',color:T.accent,
+        letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:'0.8rem'}}>Factura FV-2024-0892</div>
+      {[{l:'Consulta médica general',v:'$75.000'},
+        {l:'Electrocardiograma',v:'$45.000'},
+        {l:'Glucometría',v:'$15.000'},
+      ].map((r,i)=>(
+        <div key={i} style={{display:'flex',justifyContent:'space-between',
+          padding:'7px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+          <div style={{fontSize:'0.72rem',color:T.textSecondary}}>{r.l}</div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.72rem',color:T.textPrimary}}>{r.v}</div>
+        </div>
+      ))}
+      <div style={{display:'flex',justifyContent:'space-between',marginTop:10,padding:'8px 10px',
+        background:T.accentGlow,border:`1px solid ${T.accentBorder}`,borderRadius:6}}>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+          fontSize:'0.9rem',textTransform:'uppercase',color:T.textPrimary}}>Total</div>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,
+          fontSize:'1.1rem',color:T.accent}}>$135.000</div>
+      </div>
+      <div style={{marginTop:8,display:'flex',gap:6}}>
+        <div style={{flex:1,textAlign:'center',padding:'7px',borderRadius:4,
+          background:T.grad,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+          fontSize:'0.72rem',textTransform:'uppercase',color:'#050608',cursor:'pointer'}}>
+          Generar PDF
+        </div>
+        <div style={{flex:1,textAlign:'center',padding:'7px',borderRadius:4,
+          border:`1px solid ${T.accentBorder}`,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+          fontSize:'0.72rem',textTransform:'uppercase',color:T.accent,cursor:'pointer'}}>
+          Enviar RIPS
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MockRemision(){
+  return (
+    <div style={{background:'#0C0E14',borderRadius:12,border:'1px solid rgba(76,201,240,0.15)',
+      padding:'1.2rem',animation:'fadeIn .3s ease'}}>
+      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.62rem',color:T.accent,
+        letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:'0.8rem'}}>Nueva remisión</div>
+      {[
+        {l:'Paciente',v:'Carlos Mendoza — PAC-00247'},
+        {l:'Especialidad destino',v:'Cardiología'},
+        {l:'Diagnóstico CIE-10',v:'I20 — Angina pectoris'},
+        {l:'Urgencia',v:'Prioritaria'},
+        {l:'Observaciones',v:'Dolor torácico recurrente, requiere evaluación...'},
+      ].map(f=>(
+        <div key={f.l} style={{marginBottom:7,paddingBottom:7,
+          borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.55rem',
+            color:T.textMuted,letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:2}}>{f.l}</div>
+          <div style={{fontSize:'0.72rem',color:T.textPrimary}}>{f.v}</div>
+        </div>
+      ))}
+      <div style={{marginTop:8,padding:'7px',textAlign:'center',borderRadius:4,
+        background:'rgba(34,197,94,0.12)',border:'1px solid rgba(34,197,94,0.2)',
+        fontFamily:"'JetBrains Mono',monospace",fontSize:'0.62rem',color:T.green}}>
+        ✓ Remisión enviada al sistema
+      </div>
+    </div>
+  )
+}
+
+/* ── Clinova isotipo ─────────────────────────────────────── */
+function ClinovaMark({ size=30 }){
+  const u=React.useId().replace(/:/g,'x')
+  if (size < 24) return (
+    <svg width={size} height={size} viewBox="0 0 220 220" fill="none">
+      <circle cx="110" cy="110" r="86" fill="none" stroke="#4CC9F0" strokeWidth="48"
+        strokeDasharray="429.28 111.07" strokeDashoffset="-55.54"/>
+    </svg>
+  )
+  return (
+    <svg width={size} height={size} viewBox="0 0 220 220" fill="none">
+      <defs><linearGradient id={`cg${u}`} x1="150" y1="30" x2="215" y2="105" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#5FF3E5"/><stop offset="1" stopColor="#47CAFF"/></linearGradient></defs>
+      <circle cx="110" cy="110" r="86" fill="none" stroke="#F2F7FC" strokeWidth="48"
+        strokeDasharray="324.21 216.14" strokeDashoffset="-55.54"/>
+      <circle cx="110" cy="110" r="86" fill="none" stroke={`url(#cg${u})`} strokeWidth="48"
+        strokeDasharray="105.07 435.29" strokeDashoffset="-379.75"/>
+    </svg>
+  )
+}
+
+/* ── Navbar ──────────────────────────────────────────────── */
+function Navbar(){
+  const [scrolled,setScrolled]=React.useState(false)
+  const [progress,setProgress]=React.useState(0)
+  React.useEffect(()=>{
+    const fn=()=>{
+      setScrolled(window.scrollY>50)
+      const el=document.documentElement
+      setProgress((el.scrollHeight-el.clientHeight)>0?window.scrollY/(el.scrollHeight-el.clientHeight):0)
+    }
+    window.addEventListener('scroll',fn); return()=>window.removeEventListener('scroll',fn)
+  },[])
+  return (
+    <nav style={{position:'fixed',top:0,left:0,right:0,zIndex:200,height:64,
+      display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 5vw',
+      background:scrolled?`${T.bgDeep}f2`:`${T.bgDeep}bb`,
+      backdropFilter:'blur(24px)',
+      borderBottom:`1px solid ${scrolled?T.accentBorder:'rgba(76,201,240,0.06)'}`,
+      transition:'background .3s,border-color .3s'}}>
+      <div style={{position:'absolute',bottom:0,left:0,height:2,width:`${progress*100}%`,
+        background:T.grad,transition:'width .1s linear',zIndex:1}}/>
+      {/* Back to GISOSA */}
+      <a href="index.html" style={{display:'flex',alignItems:'center',gap:8,
+        fontFamily:"'JetBrains Mono',monospace",fontSize:'0.68rem',
+        color:T.textMuted,letterSpacing:'0.1em',textTransform:'uppercase',
+        transition:'color .2s'}}
+        onMouseEnter={e=>e.currentTarget.style.color=T.accent}
+        onMouseLeave={e=>e.currentTarget.style.color=T.textMuted}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        GISOSA
+      </a>
+      {/* Product brand */}
+      <div style={{display:'flex',alignItems:'center',gap:10}}>
+        <ClinovaMark size={32}/>
+        <div>
+          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:600,
+            fontSize:'1.15rem',letterSpacing:'0.05em',color:T.textPrimary}}>CLINOVA</span>
+          <span style={{fontFamily:"Barlow,sans-serif",fontWeight:400,fontSize:'0.5rem',
+            color:T.textMuted,letterSpacing:'0.24em',display:'block',marginTop:-1}}>
+            GISOSA HEALTH TECH
+          </span>
+        </div>
+      </div>
+      <a href="#demo" style={{display:'none'}} className="hide-mob"/>
+      <a href="#demo" style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+        fontSize:'0.85rem',letterSpacing:'0.08em',textTransform:'uppercase',
+        background:T.grad,color:'#050608',padding:'8px 22px',borderRadius:3,
+        display:'inline-block',transition:'opacity .2s,transform .2s'}}
+        className="hide-mob"
+        onMouseEnter={e=>{e.currentTarget.style.opacity='.85';e.currentTarget.style.transform='translateY(-1px)'}}
+        onMouseLeave={e=>{e.currentTarget.style.opacity='1';e.currentTarget.style.transform='translateY(0)'}}>
+        Demo gratuita
+      </a>
+    </nav>
+  )
+}
+
+/* ── Hero ────────────────────────────────────────────────── */
+function Hero(){
+  const [ref,vis]=useReveal()
+  const c1=useCounter(200,1800,vis), c2=useCounter(98,1600,vis), c3=useCounter(4,1000,vis)
+  return (
+    <section style={{minHeight:'100vh',display:'flex',alignItems:'center',
+      padding:'100px 5vw 60px',position:'relative',overflow:'hidden',background:T.bgDeep}}>
+      {/* Orbs */}
+      <div style={{position:'absolute',top:-180,left:-200,width:800,height:800,borderRadius:'50%',
+        background:'radial-gradient(circle,rgba(76,201,240,0.09) 0%,transparent 65%)',
+        filter:'blur(100px)',pointerEvents:'none'}}/>
+      <div style={{position:'absolute',bottom:-100,right:-150,width:600,height:600,borderRadius:'50%',
+        background:'radial-gradient(circle,rgba(0,119,182,0.07) 0%,transparent 65%)',
+        filter:'blur(80px)',pointerEvents:'none'}}/>
+      {/* Grid overlay */}
+      <div style={{position:'absolute',inset:0,pointerEvents:'none',
+        backgroundImage:'linear-gradient(rgba(76,201,240,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(76,201,240,.022) 1px,transparent 1px)',
+        backgroundSize:'44px 44px'}}/>
+
+      <div className="hero-g" style={{maxWidth:1200,margin:'0 auto',width:'100%',
+        position:'relative',zIndex:1,display:'grid',
+        gridTemplateColumns:'1fr 1.1fr',gap:'4rem',alignItems:'center'}}>
+        <div>
+          {/* Badge */}
+          <Reveal style={{marginBottom:'1.2rem'}}>
+            <div style={{display:'inline-flex',alignItems:'center',gap:8,
+              fontFamily:"'JetBrains Mono',monospace",fontSize:'0.68rem',
+              letterSpacing:'0.12em',textTransform:'uppercase',color:T.accent,
+              background:T.accentGlow,border:`1px solid ${T.accentBorder}`,
+              padding:'5px 14px',borderRadius:99}}>
+              <span style={{width:5,height:5,background:T.green,borderRadius:'50%',
+                animation:'pulse-dot 2s ease infinite',flexShrink:0}}/>
+              GISOSA Health Tech · MVP disponible
+            </div>
+          </Reveal>
+
+          {/* Headline */}
+          <Reveal delay={0.1} style={{marginBottom:'1.2rem'}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.8rem',
+              letterSpacing:'0.2em',textTransform:'uppercase',color:T.accent,
+              marginBottom:'0.6rem',fontWeight:500}}>Clinova</div>
+            <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,
+              textTransform:'uppercase',fontSize:'clamp(2.8rem,5.2vw,5.4rem)',
+              lineHeight:0.90,letterSpacing:'-0.01em'}}>
+              Tu consultorio,
+              <span style={{display:'block',background:T.grad,
+                WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>
+                digitalizado.
+              </span>
+            </h1>
+          </Reveal>
+
+          <Reveal delay={0.2} style={{marginBottom:'2rem'}}>
+            <p style={{fontSize:'1.05rem',color:T.textSecondary,maxWidth:440,
+              lineHeight:1.78,fontFamily:"'DM Sans',sans-serif"}}>
+              Historia clínica, agendamiento, facturación y remisiones — todo integrado
+              en un sistema diseñado para los prestadores de salud colombianos.
+            </p>
+          </Reveal>
+
+          <Reveal delay={0.3} style={{display:'flex',gap:12,flexWrap:'wrap',marginBottom:'2.5rem'}}>
+            <a href="#demo" style={{display:'inline-flex',alignItems:'center',gap:8,
+              background:T.grad,color:'#050608',fontFamily:"'Barlow Condensed',sans-serif",
+              fontWeight:700,fontSize:'0.92rem',letterSpacing:'0.08em',textTransform:'uppercase',
+              padding:'13px 28px',borderRadius:3,transition:'transform .2s,box-shadow .2s'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 12px 36px rgba(76,201,240,.30)'}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Ver demo
+            </a>
+            <a href="#funcionalidades" style={{display:'inline-flex',alignItems:'center',gap:8,
+              background:'transparent',color:T.accent,fontFamily:"'Barlow Condensed',sans-serif",
+              fontWeight:700,fontSize:'0.92rem',letterSpacing:'0.08em',textTransform:'uppercase',
+              padding:'13px 28px',borderRadius:3,border:`1px solid ${T.accentBorder}`,
+              transition:'background .2s,border-color .2s'}}
+              onMouseEnter={e=>{e.currentTarget.style.background=T.accentGlow;e.currentTarget.style.borderColor=T.accent}}
+              onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor=T.accentBorder}}>
+              Ver funcionalidades
+            </a>
+          </Reveal>
+
+          {/* Stats */}
+          <div ref={ref} style={{display:'flex',gap:'2rem',paddingTop:'1.8rem',
+            borderTop:`1px solid ${T.accentBorder}`,flexWrap:'wrap'}}>
+            {[{n:`+${c1}`,l:'Consultas gestionadas'},{n:`${c2}%`,l:'Satisfacción en piloto'},{n:c3,l:'Módulos integrados'}].map(s=>(
+              <div key={s.l}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,
+                  fontSize:'2.4rem',lineHeight:1,background:T.grad,
+                  WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{s.n}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.58rem',
+                  color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:3}}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* App mockup */}
+        <Reveal delay={0.2} className="hide-mob">
+          <div style={{position:'relative'}}>
+            <AppDashboard/>
+            {/* Floating badge */}
+            <div style={{position:'absolute',top:-16,right:-16,
+              background:'rgba(34,197,94,0.12)',border:'1px solid rgba(34,197,94,0.25)',
+              borderRadius:10,padding:'8px 14px',backdropFilter:'blur(12px)',
+              animation:'float 4s ease-in-out infinite'}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.58rem',
+                color:T.green,letterSpacing:'0.1em',textTransform:'uppercase'}}>✓ Sin instalación</div>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
+/* ── Problema ────────────────────────────────────────────── */
+function Problema(){
+  const problems=[
+    {icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4CC9F0" strokeWidth="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+      t:'Datos dispersos',p:'Agenda en papel, historia clínica en Word y facturación en Excel. Información perdida, errores y tiempo perdido.'},
+    {icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4CC9F0" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+      t:'Incumplimiento normativo',p:'Los reportes RIPS, la habilitación y la trazabilidad exigen procesos formales que los sistemas tradicionales no facilitan.'},
+    {icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4CC9F0" strokeWidth="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+      t:'Sistemas costosos',p:'Los EHR del mercado están diseñados para grandes IPS. Para un consultorio o médico independiente son demasiado complejos y caros.'},
+  ]
+  return (
+    <section style={{background:T.bgMid,padding:'80px 5vw',
+      borderTop:'1px solid rgba(76,201,240,0.09)',borderBottom:'1px solid rgba(76,201,240,0.09)'}}>
+      <div style={{maxWidth:1200,margin:'0 auto'}}>
+        <Reveal style={{textAlign:'center',marginBottom:'3rem'}}>
+          <p style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.68rem',
+            color:T.accent,letterSpacing:'0.18em',textTransform:'uppercase',marginBottom:'0.8rem'}}>
+            El problema
+          </p>
+          <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,
+            textTransform:'uppercase',lineHeight:0.93,fontSize:'clamp(2rem,3.5vw,3rem)'}}>
+            Los prestadores pequeños merecen{' '}
+            <span style={{background:T.grad,WebkitBackgroundClip:'text',
+              WebkitTextFillColor:'transparent',backgroundClip:'text'}}>mejores herramientas</span>
+          </h2>
+        </Reveal>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:24}} className="feat-g">
+          {problems.map((p,i)=>(
+            <Reveal key={p.t} delay={i*0.12}>
+              <div style={{background:T.bgSurface,border:`1px solid ${T.accentBorder}`,
+                borderRadius:16,padding:'2rem',height:'100%',
+                transition:'border-color .25s,transform .25s'}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(76,201,240,0.45)';e.currentTarget.style.transform='translateY(-3px)'}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=T.accentBorder;e.currentTarget.style.transform='translateY(0)'}}>
+                <div style={{width:48,height:48,background:T.accentGlow,
+                  border:`1px solid ${T.accentBorder}`,borderRadius:10,
+                  display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'1.2rem'}}>
+                  {p.icon}
+                </div>
+                <h3 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+                  fontSize:'1.2rem',textTransform:'uppercase',letterSpacing:'0.04em',
+                  marginBottom:'0.6rem',color:T.textPrimary}}>{p.t}</h3>
+                <p style={{fontSize:'0.87rem',color:T.textSecondary,lineHeight:1.78,
+                  fontFamily:"'DM Sans',sans-serif"}}>{p.p}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── Funcionalidades ─────────────────────────────────────── */
+const FEATURES=[
+  {id:'agenda',label:'Agendamiento',icon:c=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+    title:'Agenda digital inteligente',
+    desc:'Gestiona tus citas en tiempo real desde cualquier dispositivo. Envía recordatorios automáticos, visualiza tu semana completa y evita ausencias.',
+    bullets:['Vista diaria, semanal y mensual','Recordatorios automáticos al paciente','Control de cupos y tiempos de consulta','Registro de ausencias e inasistencias'],
+    mock:<MockAgendamiento/>},
+  {id:'historia',label:'Historia Clínica',icon:c=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+    title:'Historia clínica electrónica',
+    desc:'Registra evoluciones, diagnósticos CIE-10, signos vitales, medicamentos y antecedentes. Toda la información del paciente en un solo lugar.',
+    bullets:['Diagnósticos con código CIE-10','Plantillas por especialidad','Adjunto de exámenes e imágenes','Historial completo por paciente'],
+    mock:<MockHistoria/>},
+  {id:'facturacion',label:'Facturación',icon:c=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+    title:'Facturación y RIPS',
+    desc:'Genera facturas electrónicas, controla pagos y exporta los archivos RIPS requeridos por el Ministerio de Salud. Cumplimiento normativo automático.',
+    bullets:['Factura electrónica DIAN','Generación automática de RIPS','Control de cartera y pagos','Reportes financieros por período'],
+    mock:<MockFacturacion/>},
+  {id:'remision',label:'Remisiones',icon:c=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+    title:'Gestión de remisiones',
+    desc:'Crea y envía remisiones a especialistas con diagnóstico, urgencia y observaciones. Mantén trazabilidad de cada derivación en el sistema.',
+    bullets:['Remisiones con código CIE-10','Seguimiento del estado de remisión','Registro de contrarremisiones','Integración con redes de referencia'],
+    mock:<MockRemision/>},
+]
+
+function Funcionalidades(){
+  const [active,setActive]=React.useState(0)
+  const f=FEATURES[active]
+  return (
+    <section id="funcionalidades" style={{background:T.bgDeep,padding:'100px 5vw',position:'relative',zIndex:1}}>
+      <div style={{maxWidth:1200,margin:'0 auto'}}>
+        <Reveal style={{marginBottom:'0.8rem'}}>
+          <p style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.7rem',
+            color:T.accent,letterSpacing:'0.18em',textTransform:'uppercase'}}>// Funcionalidades</p>
+        </Reveal>
+        <Reveal delay={0.1} style={{marginBottom:'3rem'}}>
+          <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,
+            textTransform:'uppercase',lineHeight:0.93,fontSize:'clamp(2.4rem,4vw,3.5rem)'}}>
+            Todo lo que necesita{' '}
+            <span style={{background:T.grad,WebkitBackgroundClip:'text',
+              WebkitTextFillColor:'transparent',backgroundClip:'text'}}>tu consultorio</span>
+          </h2>
+        </Reveal>
+
+        {/* Tab bar */}
+        <div style={{display:'flex',borderBottom:'1px solid rgba(76,201,240,0.14)',
+          marginBottom:0,overflowX:'auto'}}>
+          {FEATURES.map((feat,i)=>(
+            <button key={feat.id} onClick={()=>setActive(i)} style={{
+              background:'none',border:'none',cursor:'pointer',
+              display:'flex',alignItems:'center',gap:8,
+              fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+              fontSize:'0.88rem',letterSpacing:'0.06em',textTransform:'uppercase',
+              padding:'14px 24px',whiteSpace:'nowrap',
+              color:i===active?T.accent:T.textSecondary,
+              borderBottom:i===active?`2px solid ${T.accent}`:'2px solid transparent',
+              marginBottom:'-1px',transition:'color .2s'}}>
+              {feat.icon(i===active?T.accent:T.textMuted)}
+              {feat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div key={active} className="feat-g" style={{
+          background:T.bgCard,backdropFilter:'blur(20px)',
+          border:`1px solid ${T.accentBorder}`,borderTop:'none',
+          borderRadius:'0 0 16px 16px',padding:'2.5rem',
+          display:'grid',gridTemplateColumns:'1fr 1fr',gap:'3rem',
+          alignItems:'start',animation:'fadeIn .3s ease'}}>
+          <div>
+            <h3 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+              fontSize:'1.8rem',textTransform:'uppercase',lineHeight:1.1,
+              marginBottom:'1rem',color:T.textPrimary}}>{f.title}</h3>
+            <p style={{fontSize:'0.92rem',color:T.textSecondary,lineHeight:1.82,
+              fontFamily:"'DM Sans',sans-serif",marginBottom:'1.5rem'}}>{f.desc}</p>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {f.bullets.map((b,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:10,
+                  animation:`slideIn .3s ease ${i*0.07}s both`}}>
+                  <div style={{width:20,height:20,flexShrink:0,background:T.grad,
+                    borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#050608" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <span style={{fontSize:'0.87rem',color:T.textSecondary,
+                    fontFamily:"'DM Sans',sans-serif"}}>{b}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>{f.mock}</div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── Para quién ──────────────────────────────────────────── */
+function ParaQuien(){
+  const profiles=[
+    {icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4CC9F0" strokeWidth="1.6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+      t:'Médico independiente',p:'Practica en tu consultorio propio o en clínica. Necesitas una herramienta ágil que no te dé más carga administrativa, sino que te la quite.',
+      bullets:['Sin pago de implementación','Acceso desde cualquier dispositivo','Soporte por WhatsApp']},
+    {icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4CC9F0" strokeWidth="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+      t:'Consultorio médico',p:'Manejas un equipo de 1 a 5 personas. Necesitas centralizar la información, coordinar la agenda y generar reportes sin contratar un equipo de sistemas.',
+      bullets:['Multi-usuario con roles','Consolidado de facturación','Reportes de productividad']},
+    {icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4CC9F0" strokeWidth="1.6"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
+      t:'IPS pequeña',p:'Tienes varios profesionales y especialidades. Necesitas trazabilidad, cumplimiento normativo con RIPS y una historia clínica unificada por paciente.',
+      bullets:['Multi-sede y multi-especialidad','Generación de RIPS automática','Historial clínico unificado']},
+  ]
+  return (
+    <section style={{background:T.bgMid,padding:'100px 5vw',
+      borderTop:'1px solid rgba(76,201,240,0.09)',borderBottom:'1px solid rgba(76,201,240,0.09)'}}>
+      <div style={{maxWidth:1200,margin:'0 auto'}}>
+        <Reveal style={{marginBottom:'0.8rem'}}>
+          <p style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.7rem',
+            color:T.accent,letterSpacing:'0.18em',textTransform:'uppercase'}}>// Para quién es Clinova</p>
+        </Reveal>
+        <Reveal delay={0.1} style={{marginBottom:'3rem'}}>
+          <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,
+            textTransform:'uppercase',lineHeight:0.93,fontSize:'clamp(2.4rem,4vw,3.5rem)'}}>
+            Diseñado para el{' '}
+            <span style={{background:T.grad,WebkitBackgroundClip:'text',
+              WebkitTextFillColor:'transparent',backgroundClip:'text'}}>prestador colombiano</span>
+          </h2>
+        </Reveal>
+        <div className="who-g" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:24}}>
+          {profiles.map((p,i)=>(
+            <Reveal key={p.t} delay={i*0.12}>
+              <div style={{background:T.bgSurface,border:`1px solid ${T.accentBorder}`,
+                borderRadius:18,padding:'2.2rem',height:'100%',position:'relative',overflow:'hidden',
+                transition:'transform .25s,box-shadow .25s'}}
+                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 16px 48px rgba(76,201,240,0.09)'}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
+                <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:T.grad}}/>
+                <div style={{width:56,height:56,background:T.accentGlow,
+                  border:`1px solid ${T.accentBorder}`,borderRadius:12,
+                  display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'1.4rem'}}>
+                  {p.icon}
+                </div>
+                <h3 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,
+                  fontSize:'1.3rem',textTransform:'uppercase',letterSpacing:'0.04em',
+                  marginBottom:'0.8rem',color:T.textPrimary}}>{p.t}</h3>
+                <p style={{fontSize:'0.87rem',color:T.textSecondary,lineHeight:1.78,
+                  fontFamily:"'DM Sans',sans-serif",marginBottom:'1.4rem'}}>{p.p}</p>
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  {p.bullets.map((b,j)=>(
+                    <div key={j} style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{color:T.accent,fontSize:'0.8rem'}}>→</span>
+                      <span style={{fontSize:'0.82rem',color:T.textSecondary,
+                        fontFamily:"'DM Sans',sans-serif"}}>{b}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── Demo CTA ────────────────────────────────────────────── */
+function Demo(){
+  return (
+    <section id="demo" style={{background:T.bgDeep,padding:'100px 5vw',position:'relative',zIndex:1}}>
+      <div style={{maxWidth:900,margin:'0 auto'}}>
+        <Reveal>
+          <div style={{background:T.bgSurface,border:`1px solid ${T.accentBorder}`,
+            borderRadius:20,padding:'4rem 3rem',position:'relative',overflow:'hidden',
+            textAlign:'center'}}>
+            <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:T.grad}}/>
+            <div style={{position:'absolute',top:-120,left:'50%',transform:'translateX(-50%)',
+              width:500,height:500,borderRadius:'50%',
+              background:'radial-gradient(circle,rgba(76,201,240,0.07) 0%,transparent 70%)',
+              pointerEvents:'none'}}/>
+            <div style={{position:'relative',zIndex:1}}>
+              <p style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.68rem',
+                color:T.green,letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:'1rem',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+                <span style={{width:6,height:6,background:T.green,borderRadius:'50%',
+                  animation:'pulse-dot 2s ease infinite'}}/>
+                MVP disponible — Acceso anticipado gratuito
+              </p>
+              <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,
+                textTransform:'uppercase',lineHeight:0.93,
+                fontSize:'clamp(2.4rem,4.5vw,4rem)',marginBottom:'1.2rem'}}>
+                ¿Listo para probar{' '}
+                <span style={{background:T.grad,WebkitBackgroundClip:'text',
+                  WebkitTextFillColor:'transparent',backgroundClip:'text'}}>Clinova</span>?
+              </h2>
+              <p style={{fontSize:'1rem',color:T.textSecondary,maxWidth:520,
+                margin:'0 auto 2.5rem',lineHeight:1.78,fontFamily:"'DM Sans',sans-serif"}}>
+                Estamos en fase de acceso anticipado y buscamos consultorios e IPS pequeñas
+                que quieran ser los primeros en usar Clinova — sin costo.
+              </p>
+              <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+                <a href="https://wa.me/573117483695?text=Hola,%20me%20interesa%20conocer%20Clinova" target="_blank" rel="noopener"
+                  style={{display:'inline-flex',alignItems:'center',gap:10,
+                    background:'#22C55E',color:'#fff',fontFamily:"'Barlow Condensed',sans-serif",
+                    fontWeight:700,fontSize:'1rem',letterSpacing:'0.08em',textTransform:'uppercase',
+                    padding:'14px 30px',borderRadius:4,transition:'transform .2s,box-shadow .2s'}}
+                  onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 10px 28px rgba(34,197,94,.35)'}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.122.555 4.112 1.528 5.837L0 24l6.337-1.508A11.956 11.956 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.806 9.806 0 0 1-5.032-1.383l-.36-.214-3.762.896.957-3.67-.234-.376A9.77 9.77 0 0 1 2.182 12c0-5.418 4.4-9.818 9.818-9.818 5.418 0 9.818 4.4 9.818 9.818 0 5.418-4.4 9.818-9.818 9.818z"/>
+                  </svg>
+                  Quiero acceso anticipado
+                </a>
+                <a href="mailto:gerencia@gisosa.com?subject=Clinova — Demo gratuita"
+                  style={{display:'inline-flex',alignItems:'center',gap:8,
+                    background:'transparent',color:T.accent,fontFamily:"'Barlow Condensed',sans-serif",
+                    fontWeight:700,fontSize:'1rem',letterSpacing:'0.08em',textTransform:'uppercase',
+                    padding:'14px 28px',borderRadius:4,border:`1px solid ${T.accentBorder}`,
+                    transition:'background .2s,border-color .2s'}}
+                  onMouseEnter={e=>{e.currentTarget.style.background=T.accentGlow;e.currentTarget.style.borderColor=T.accent}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor=T.accentBorder}}>
+                  Solicitar demo por email
+                </a>
+              </div>
+              <p style={{marginTop:'1.5rem',fontFamily:"'JetBrains Mono',monospace",
+                fontSize:'0.62rem',color:T.textMuted,letterSpacing:'0.1em'}}>
+                Sin tarjeta de crédito · Sin contrato · Soporte incluido
+              </p>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
+/* ── Footer ──────────────────────────────────────────────── */
+function Footer(){
+  return (
+    <footer style={{background:T.bgMid,borderTop:'1px solid rgba(76,201,240,0.09)',
+      padding:'2.5rem 5vw'}}>
+      <div style={{maxWidth:1200,margin:'0 auto',display:'flex',
+        justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'1rem'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <ClinovaMark size={28}/>
+          <div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:600,
+              fontSize:'1.05rem',letterSpacing:'0.05em',color:T.textPrimary}}>CLINOVA</div>
+            <div style={{fontFamily:"Barlow,sans-serif",fontWeight:400,fontSize:'0.5rem',
+              color:T.textMuted,letterSpacing:'0.24em'}}>GISOSA HEALTH TECH</div>
+          </div>
+        </div>
+        <p style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.6rem',
+          color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.12em'}}>
+          © 2025 GISOSA — Todos los derechos reservados
+        </p>
+        <a href="index.html" style={{fontFamily:"'JetBrains Mono',monospace",
+          fontSize:'0.68rem',color:T.textSecondary,letterSpacing:'0.08em',
+          textTransform:'uppercase',display:'flex',alignItems:'center',gap:6,
+          transition:'color .2s'}}
+          onMouseEnter={e=>e.currentTarget.style.color=T.accent}
+          onMouseLeave={e=>e.currentTarget.style.color=T.textSecondary}>
+          ← Volver a GISOSA
+        </a>
+      </div>
+    </footer>
+  )
+}
+
+/* ── App ─────────────────────────────────────────────────── */
+function App(){
+  return (
+    <div>
+      <Navbar/>
+      <Hero/>
+      <Problema/>
+      <Funcionalidades/>
+      <ParaQuien/>
+      <Demo/>
+      <Footer/>
+    </div>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>)
+</script>
+</body>
+</html>
